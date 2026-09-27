@@ -1,0 +1,40 @@
+{
+  "created_at": "2026-09-24T20:53:19",
+  "experiment": "dl_baseline_iter40",
+  "task": "classification",
+  "features": {
+    "shape": [
+      891,
+      10
+    ],
+    "dtype": "float32",
+    "samples": 891
+  },
+  "labels": {
+    "shape": [
+      891
+    ],
+    "dtype": "int64",
+    "samples": 891
+  },
+  "multi_head": false,
+  "metric_learning": false,
+  "finetuning": false,
+  "self_training": false,
+  "groups": null,
+  "fold_ids": null,
+  "sources": {
+    "features": {
+      "path": "/Users/ve1nex/Desktop/titanic/dl/data/train_features.npy",
+      "size_bytes": 35768,
+      "sha256": null
+    },
+    "labels": {
+      "path": "/Users/ve1nex/Desktop/titanic/dl/data/train_labels.npy",
+      "size_bytes": 7256,
+      "sha256": null
+    },
+    "groups": null,
+    "folds": null
+  }
+}

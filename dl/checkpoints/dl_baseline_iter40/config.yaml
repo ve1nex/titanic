@@ -1,0 +1,40 @@
+general:
+  experiment_name: dl_baseline_iter40
+  seed: 1027309
+  task: classification
+  num_classes: 2
+split:
+  strategy: StratifiedKFold
+  n_splits: 5
+  shuffle: true
+training:
+  num_epochs: 30
+  early_stopping_epochs: 7
+  device: cpu
+dataloader_params:
+  batch_size: 16
+model:
+  name: MLP
+  input_shape: [10]
+  params:
+    hidden_dims: [20, 28]
+    dropout: 0.0
+    activation: ReLU
+    batchnorm: false
+optimizer:
+  name: AdamW
+  params:
+    lr: 0.011497532816911557
+    weight_decay: 0.0761432174738362
+scheduler:
+  enabled: true
+  name: ReduceLROnPlateau
+  params:
+    mode: min
+    factor: 0.7
+    patience: 3
+    min_lr: 1.0e-05
+loss:
+  name: CrossEntropyLoss
+metric:
+  name: accuracy_score

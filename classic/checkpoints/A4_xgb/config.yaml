@@ -1,0 +1,35 @@
+general:
+  experiment_name: A4_xgb
+  seed: 1027309
+  mode: train
+data:
+  target: Survived
+  id_column: PassengerId
+  drop_columns: [Ticket, Cabin]
+preprocessing:
+  numeric_imputer: mean
+  categorical_imputer: most_frequent
+  scale_numeric: true
+  encode_categorical: true
+feature_engineering:
+  enabled: true
+  feature: Title
+split:
+  n_splits: 5
+  shuffle: true
+model:
+  name: XGBClassifier
+  params:
+    n_estimators: 300
+    learning_rate: 0.051492960003745855
+    min_child_weight: 5.22226831701564
+    gamma: 0.0840195392056468
+    max_depth: 6
+    subsample: 0.8685332897567278
+    colsample_bytree: 0.609062303945643
+    reg_alpha: 0.057225176664358425
+    reg_lambda: 1.7084420539981688
+    random_state: 1027309
+    n_jobs: -1
+metric:
+  name: accuracy_score

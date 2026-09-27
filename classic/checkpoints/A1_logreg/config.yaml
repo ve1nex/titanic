@@ -1,0 +1,26 @@
+general:
+  experiment_name: A1_logreg
+  seed: 1027309
+  mode: train
+data:
+  target: Survived
+  id_column: PassengerId
+  drop_columns: [Ticket, Cabin, Name]
+preprocessing:
+  numeric_imputer: median
+  categorical_imputer: most_frequent
+  scale_numeric: false
+  encode_categorical: true
+feature_engineering:
+  enabled: false
+split:
+  n_splits: 5
+  shuffle: true
+model:
+  name: LogisticRegression
+  params:
+    C: .inf
+    solver: lbfgs
+    max_iter: 5000
+metric:
+  name: accuracy_score
