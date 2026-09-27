@@ -6,7 +6,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 config = {
     # --- General ---
     "general": {
-        "experiment_name": "A3_rf",
+        "experiment_name": "KNNbest",
         "seed": 0xFACED,
         "mode": "inference",             # train / inference
         "overwrite_experiment": False,
@@ -62,7 +62,7 @@ config = {
 
     # --- Model ---
     "model": {
-        "name": "RandomForestClassifier",
+        "name": "KNeighborsClassifier",
     },
 
     # Only models used in the final Titanic workflow are kept.
@@ -71,6 +71,13 @@ config = {
             "C": float("inf"),            # A1: effectively no L2 regularization
             "solver": "lbfgs",
             "max_iter": 5000,
+        },
+        "KNeighborsClassifier": {
+            "n_neighbors": 8,
+            "weights": "uniform",
+            "p": 1,
+            "metric": "minkowski",
+            "n_jobs": -1,
         },
         "RandomForestClassifier": {
             "n_estimators": 350,
@@ -106,7 +113,7 @@ config = {
     # Kept because it was used for RF/XGBoost tuning.
     "tuning": {
         "enabled": False,
-        "n_trials": 30,
+        "n_trials": 40,
         "sampler": "tpe",                # tpe / random
         "study_name": "${general.experiment_name}_tuning",
         "folds_to_use": "${split.folds_to_train}",
@@ -131,6 +138,22 @@ config = {
                 "colsample_bytree": {"type": "float", "low": 0.4, "high": 0.8},
                 "reg_alpha": {"type": "float", "low": 0.03, "high": 0.08, "log": True},
                 "reg_lambda": {"type": "float", "low": 1.0, "high": 2.0, "log": True},
+            },
+            "KNeighborsClassifier": {
+                "n_neighbors": {
+                    "type": "int",
+                    "low": 3,
+                    "high": 20,
+                    "step": 1,
+                },
+                "weights": {
+                    "type": "categorical",
+                    "choices": ["uniform", "distance"],
+                },
+                "p": {
+                    "type": "categorical",
+                    "choices": [1, 2],
+                },
             },
         },
     },

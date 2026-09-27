@@ -1,0 +1,5 @@
+best_value: 0.8338585148452701
+best_params:
+  n_neighbors: 8
+  weights: uniform
+  p: 1

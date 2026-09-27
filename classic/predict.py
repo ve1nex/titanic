@@ -19,12 +19,12 @@ def inference(config):
     X_test = df.drop(columns=[str(config.data.id_column)], errors="ignore")
 
     predictions = pipeline.predict(X_test)
-    probabilities = pipeline.predict_proba(X_test)[:, 1]
+    #probabilities = pipeline.predict_proba(X_test)[:, 1]
 
     output = pd.DataFrame({
         str(config.data.id_column): ids.to_numpy(),
         str(config.data.target): predictions,
-        "Probability": probabilities,
+        #"Probability": probabilities,
     })
     path = Path(config.paths.path_to_predictions)
     path.parent.mkdir(parents=True, exist_ok=True)
