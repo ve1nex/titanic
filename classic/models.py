@@ -13,6 +13,7 @@ MODELS = {
 
 
 def get_model(config):
+    """Instantiate the model and parameters selected in config."""
     name = str(config.model.name)
     if name not in MODELS:
         raise ValueError(f"Unknown model: {name}. Available: {list(MODELS)}")

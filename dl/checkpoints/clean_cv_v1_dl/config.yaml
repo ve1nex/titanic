@@ -1,0 +1,106 @@
+general:
+  experiment_name: clean_cv_v1_dl
+  seed: 1027309
+  mode: train
+  num_classes: 2
+  overwrite_experiment: false
+paths:
+  path_to_train_dataset: /Users/ve1nex/Desktop/titanic_ready/train.csv
+  path_to_test_dataset: /Users/ve1nex/Desktop/titanic_ready/test.csv
+  path_to_test_features: /Users/ve1nex/Desktop/titanic_ready/dl/data/test_features.npy
+  path_to_checkpoints: /Users/ve1nex/Desktop/titanic_ready/dl/checkpoints/${general.experiment_name}
+  path_to_fold_checkpoints: ${paths.path_to_checkpoints}/folds
+  path_to_oof: ${paths.path_to_checkpoints}/oof_predictions.npz
+  path_to_predictions: ${paths.path_to_checkpoints}/predictions.npy
+  path_to_plots: ${paths.path_to_checkpoints}/plots
+  path_to_config_snapshot: ${paths.path_to_checkpoints}/config.yaml
+  path_to_metadata: ${paths.path_to_checkpoints}/metadata.json
+  path_to_optuna_db: /Users/ve1nex/Desktop/titanic_ready/dl/optuna/${general.experiment_name}.db
+  path_to_tuning: ${paths.path_to_checkpoints}/tuning
+reproducibility:
+  deterministic: true
+data:
+  dtype: float32
+  flatten_for_mlp: true
+split:
+  n_splits: 5
+  folds_to_train:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  folds_to_inference:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  shuffle: true
+training:
+  num_epochs: 30
+  early_stopping_epochs: 7
+  device: cpu
+  save_best: true
+dataloader_params:
+  batch_size: 16
+  num_workers: 0
+  pin_memory: false
+  shuffle: true
+tuning:
+  enabled: false
+  n_trials: 10
+  sampler: tpe
+  study_name: ${general.experiment_name}_tuning
+  folds_to_use:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  pruning:
+    enabled: true
+    n_startup_trials: 5
+    n_warmup_steps: 3
+  search_space:
+    dropout:
+      path: model.params.dropout
+      type: float
+      low: 0.1
+      high: 0.5
+model:
+  name: MLP
+  input_shape:
+  - 10
+  params:
+    hidden_dims:
+    - 20
+    - 28
+    dropout: 0.0
+    activation: ReLU
+    batchnorm: false
+optimizer:
+  name: AdamW
+  params:
+    lr: 0.011497532816911557
+    weight_decay: 0.0761432174738362
+scheduler:
+  enabled: true
+  name: ReduceLROnPlateau
+  params:
+    mode: min
+    factor: 0.7
+    patience: 3
+    min_lr: 1.0e-05
+loss:
+  name: CrossEntropyLoss
+  params: {}
+metric:
+  name: accuracy_score
+  direction: maximize
+  params: {}
+visualization:
+  save_training_curves: true
+  save_confusion_matrix: true
+logging:
+  prints: true

@@ -1,0 +1,37 @@
+{
+  "rows": 891,
+  "columns": [
+    "PassengerId",
+    "Survived",
+    "Pclass",
+    "Sex",
+    "Age",
+    "SibSp",
+    "Parch",
+    "Fare",
+    "Embarked",
+    "Title"
+  ],
+  "dtypes": {
+    "PassengerId": "int64",
+    "Survived": "int64",
+    "Pclass": "int64",
+    "Sex": "str",
+    "Age": "float64",
+    "SibSp": "int64",
+    "Parch": "int64",
+    "Fare": "float64",
+    "Embarked": "str",
+    "Title": "str"
+  },
+  "cv_mean": 0.8540706798066662,
+  "cv_std": 0.016474248485126942,
+  "fold_scores": {
+    "0": 0.8770949720670391,
+    "1": 0.8539325842696629,
+    "2": 0.8539325842696629,
+    "3": 0.8595505617977528,
+    "4": 0.8258426966292135
+  },
+  "oof_complete": true
+}

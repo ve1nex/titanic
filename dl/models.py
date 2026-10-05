@@ -3,13 +3,18 @@ import torch.nn as nn
 
 
 def _activation(name):
+    """Resolve the configured PyTorch activation class."""
     if not hasattr(nn, name):
         raise ValueError(f"Unknown activation: {name}")
     return getattr(nn, name)
 
 
 class MLPBackbone(nn.Module):
-    def __init__(self, input_shape, hidden_dims, dropout=0.0, activation="ReLU", batchnorm=False):
+    """Build the tested dense layers with optional BatchNorm and dropout."""
+
+    def __init__(
+        self, input_shape, hidden_dims, dropout=0.0, activation="ReLU", batchnorm=False
+    ):
         super().__init__()
         activation_cls = _activation(activation)
         layers = [nn.Flatten()]
@@ -30,6 +35,8 @@ class MLPBackbone(nn.Module):
 
 
 class PredictionHead(nn.Module):
+    """Map learned features to the output class scores."""
+
     def __init__(self, input_dim, output_dim):
         super().__init__()
         self.network = nn.Sequential(nn.Linear(int(input_dim), int(output_dim)))
@@ -39,6 +46,8 @@ class PredictionHead(nn.Module):
 
 
 class UniversalDLModel(nn.Module):
+    """Connect the existing backbone and prediction head interfaces."""
+
     def __init__(self, backbone, num_classes):
         super().__init__()
         self.backbone = backbone
@@ -49,8 +58,9 @@ class UniversalDLModel(nn.Module):
 
 
 def get_model(config):
+    """Instantiate the model and parameters selected in config."""
     if str(config.model.name) != "MLP":
-        raise ValueError("Clean Titanic pipeline keeps only MLP")
+        raise ValueError("Titanic DL supports MLP")
     p = config.model.params
     backbone = MLPBackbone(
         input_shape=list(config.model.input_shape),
@@ -63,6 +73,7 @@ def get_model(config):
 
 
 def count_parameters(model):
+    """Return total and trainable parameter counts."""
     total = sum(p.numel() for p in model.parameters())
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     return total, trainable

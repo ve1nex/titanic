@@ -3,6 +3,7 @@ from omegaconf import OmegaConf
 
 
 def get_loss(config):
+    """Instantiate the configured PyTorch loss function."""
     name = str(config.loss.name)
     if not hasattr(nn, name):
         raise ValueError(f"Unknown torch loss: {name}")

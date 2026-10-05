@@ -1,5 +1,4 @@
 import time
-from pathlib import Path
 
 import joblib
 import numpy as np
@@ -14,6 +13,7 @@ from visualization import save_feature_importance, save_validation_plot
 
 
 def get_cv(config):
+    """Create the seeded validation splitter used by this project."""
     return StratifiedKFold(
         n_splits=int(config.split.n_splits),
         shuffle=bool(config.split.shuffle),
@@ -22,13 +22,17 @@ def get_cv(config):
 
 
 def build_training_pipeline(X, config):
-    return Pipeline([
-        ("preprocessing", build_preprocessor(X, config)),
-        ("model", get_model(config)),
-    ])
+    """Fit learned preprocessing together with the selected estimator."""
+    return Pipeline(
+        [
+            ("preprocessing", build_preprocessor(X, config)),
+            ("model", get_model(config)),
+        ]
+    )
 
 
 def evaluate_cv_score(config, X, y, folds_to_use=None):
+    """Evaluate selected CV folds without saving model artifacts."""
     requested = set(int(x) for x in (folds_to_use or config.split.folds_to_train))
     scores = []
     for fold, (tr, va) in enumerate(get_cv(config).split(X, y)):
@@ -43,9 +47,13 @@ def evaluate_cv_score(config, X, y, folds_to_use=None):
 
 
 def train(config, X, y):
+    """Train validation folds and persist OOF predictions and CV results."""
     requested = set(int(x) for x in config.split.folds_to_train)
+    if not requested or not requested.issubset(set(range(int(config.split.n_splits)))):
+        raise ValueError("Select valid validation folds")
     scores = []
-    oof_pred = np.empty(len(y), dtype=np.asarray(y).dtype)
+    oof_pred = np.zeros(len(y), dtype=np.asarray(y).dtype)
+    fold_ids = np.full(len(y), -1, dtype=int)
     oof_prob = np.full(len(y), np.nan, dtype=float)
     mask = np.zeros(len(y), dtype=bool)
     start = time.time()
@@ -62,16 +70,20 @@ def train(config, X, y):
         oof_pred[va] = pred
         oof_prob[va] = prob
         mask[va] = True
+        fold_ids[va] = fold
         if bool(config.logging.prints):
             print(f"Fold {fold} | {config.metric.name}: {score:.4f}")
 
     if bool(config.training.save_oof_predictions):
-        pd.DataFrame({
-            "row_index": np.arange(len(y))[mask],
-            "target": np.asarray(y)[mask],
-            "prediction": oof_pred[mask],
-            "probability": oof_prob[mask],
-        }).to_csv(config.paths.path_to_oof, index=False)
+        pd.DataFrame(
+            {
+                "row_index": np.arange(len(y))[mask],
+                "target": np.asarray(y)[mask],
+                "prediction": oof_pred[mask],
+                "probability": oof_prob[mask],
+                "fold": fold_ids[mask],
+            }
+        ).to_csv(config.paths.path_to_oof, index=False)
 
     save_validation_plot(np.asarray(y)[mask], oof_pred[mask], config)
 
@@ -83,6 +95,9 @@ def train(config, X, y):
         save_feature_importance(final_model, X, config)
 
     mean, std = float(np.mean(scores)), float(np.std(scores))
+    from utils import save_cv_metadata
+
+    save_cv_metadata(config, scores, fold_ids, mask)
     if bool(config.logging.prints):
         print(f"\nCV {config.metric.name}: {mean:.4f} ± {std:.4f}")
         print(f"Time: {int(time.time() - start)} s")

@@ -6,6 +6,7 @@ from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 
 
 def save_training_curves(history, output_path):
+    """Plot saved training loss, validation loss, metric, and learning rate."""
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -44,6 +45,7 @@ def save_training_curves(history, output_path):
 
 
 def save_confusion_matrix(y_true, y_pred, output_path):
+    """Save a confusion matrix from validation predictions."""
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     matrix = confusion_matrix(y_true, y_pred)

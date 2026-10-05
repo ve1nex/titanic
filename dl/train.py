@@ -6,8 +6,8 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from checkpointing import load_checkpoint, save_checkpoint
-from data import get_fold_loaders
+from checkpointing import save_checkpoint
+from data import get_fold_indices, get_fold_loaders
 from losses import get_loss
 from metrics import get_metric, is_improvement, outputs_to_predictions
 from models import count_parameters, get_model
@@ -18,9 +18,14 @@ from visualization import save_confusion_matrix, save_training_curves
 
 
 def train_one_epoch(config, model, loader, optimizer, loss_fn, device):
+    """Update model parameters over one training epoch."""
     model.train()
-    total = 0.0
-    for batch in tqdm(loader, desc="Train", leave=False) if bool(config.logging.prints) else loader:
+    total, samples = 0.0, 0
+    for batch in (
+        tqdm(loader, desc="Train", leave=False)
+        if bool(config.logging.prints)
+        else loader
+    ):
         x = batch["features"].to(device)
         y = batch["labels"].to(device)
         optimizer.zero_grad(set_to_none=True)
@@ -28,43 +33,70 @@ def train_one_epoch(config, model, loader, optimizer, loss_fn, device):
         loss = loss_fn(out, y)
         loss.backward()
         optimizer.step()
-        total += float(loss.detach().cpu())
-    return total / max(1, len(loader))
+        total += float(loss.detach().cpu()) * len(y)
+        samples += len(y)
+    return total / samples
 
 
 def validate_one_epoch(config, model, loader, loss_fn, device):
+    """Collect validation losses and predictions without parameter updates."""
     model.eval()
-    total = 0.0
+    total, samples = 0.0, 0
     outputs, targets = [], []
     with torch.no_grad():
-        for batch in tqdm(loader, desc="Valid", leave=False) if bool(config.logging.prints) else loader:
+        for batch in (
+            tqdm(loader, desc="Valid", leave=False)
+            if bool(config.logging.prints)
+            else loader
+        ):
             x = batch["features"].to(device)
             y = batch["labels"].to(device)
             out = model(x)
-            total += float(loss_fn(out, y).detach().cpu())
+            total += float(loss_fn(out, y).detach().cpu()) * len(y)
+            samples += len(y)
             outputs.append(out.detach().cpu().numpy())
             targets.append(y.detach().cpu().numpy())
     outputs = np.concatenate(outputs)
     targets = np.concatenate(targets)
-    return total / max(1, len(loader)), get_metric(config, targets, outputs), outputs, targets
+    return total / samples, get_metric(config, targets, outputs), outputs, targets
 
 
-def run_fold(config, features, labels, fold, checkpoint_root=None, trial=None, trial_step_offset=0, save_artifacts=True):
-    set_seed(int(config.general.seed) + int(fold), bool(config.reproducibility.deterministic))
+def run_fold(
+    config,
+    features,
+    labels,
+    fold,
+    checkpoint_root=None,
+    trial=None,
+    trial_step_offset=0,
+    save_artifacts=True,
+):
+    """Train one fold with its own preprocessing, checkpoint, and early stopping."""
+    set_seed(
+        int(config.general.seed) + int(fold), bool(config.reproducibility.deterministic)
+    )
     device = resolve_device(config)
     root = Path(checkpoint_root or config.paths.path_to_fold_checkpoints)
     fold_dir = root / f"fold_{fold}"
     if save_artifacts:
         fold_dir.mkdir(parents=True, exist_ok=True)
 
-    train_loader, val_loader, _, val_idx = get_fold_loaders(features, labels, config, fold)
+    train_loader, val_loader, _, val_idx = get_fold_loaders(
+        features,
+        labels,
+        config,
+        fold,
+        preprocessor_path=fold_dir / "preprocessor.joblib" if save_artifacts else None,
+    )
     model = get_model(config).to(device)
     optimizer = get_optimizer(config, model)
     scheduler = get_scheduler(config, optimizer)
     loss_fn = get_loss(config)
     total_params, trainable_params = count_parameters(model)
     if bool(config.logging.prints):
-        print(f"Device: {device} | Parameters: {total_params:,} ({trainable_params:,} trainable)")
+        print(
+            f"Device: {device} | Parameters: {total_params:,} ({trainable_params:,} trainable)"
+        )
 
     best_metric = None
     best_outputs = None
@@ -75,8 +107,12 @@ def run_fold(config, features, labels, fold, checkpoint_root=None, trial=None, t
 
     for epoch in range(int(config.training.num_epochs)):
         started = time.time()
-        train_loss = train_one_epoch(config, model, train_loader, optimizer, loss_fn, device)
-        val_loss, metric, outputs, targets = validate_one_epoch(config, model, val_loader, loss_fn, device)
+        train_loss = train_one_epoch(
+            config, model, train_loader, optimizer, loss_fn, device
+        )
+        val_loss, metric, outputs, targets = validate_one_epoch(
+            config, model, val_loader, loss_fn, device
+        )
         if scheduler is not None:
             step_scheduler(scheduler, val_loss)
 
@@ -92,7 +128,18 @@ def run_fold(config, features, labels, fold, checkpoint_root=None, trial=None, t
             best_targets = targets
             epochs_without_improvement = 0
             if save_artifacts and bool(config.training.save_best):
-                save_checkpoint(best_path, model, optimizer, scheduler, None, epoch + 1, metric, best_metric, 0)
+                save_checkpoint(
+                    best_path,
+                    model,
+                    optimizer,
+                    scheduler,
+                    None,
+                    epoch + 1,
+                    metric,
+                    best_metric,
+                    0,
+                    input_shape=config.model.input_shape,
+                )
         else:
             epochs_without_improvement += 1
 
@@ -100,13 +147,14 @@ def run_fold(config, features, labels, fold, checkpoint_root=None, trial=None, t
             trial.report(metric, step=int(trial_step_offset) + epoch)
             if trial.should_prune():
                 import optuna
+
                 raise optuna.TrialPruned()
 
         if bool(config.logging.prints):
             print(
                 f"Fold {fold} | Epoch {epoch + 1}/{config.training.num_epochs} | "
                 f"train={train_loss:.4f} | val={val_loss:.4f} | metric={metric:.4f} | "
-                f"best={best_metric:.4f} | lr={lr:.2e} | {int(time.time()-started)}s"
+                f"best={best_metric:.4f} | lr={lr:.2e} | {int(time.time() - started)}s"
             )
         if epochs_without_improvement >= int(config.training.early_stopping_epochs):
             if bool(config.logging.prints):
@@ -114,18 +162,37 @@ def run_fold(config, features, labels, fold, checkpoint_root=None, trial=None, t
             break
 
     if save_artifacts:
-        (fold_dir / "history.json").write_text(json.dumps(history, indent=2), encoding="utf-8")
+        (fold_dir / "history.json").write_text(
+            json.dumps(history, indent=2), encoding="utf-8"
+        )
         if bool(config.visualization.save_training_curves):
-            save_training_curves(history, Path(config.paths.path_to_plots) / f"fold_{fold}_training")
+            save_training_curves(
+                history, Path(config.paths.path_to_plots) / f"fold_{fold}_training"
+            )
         if bool(config.visualization.save_confusion_matrix):
-            save_confusion_matrix(best_targets, outputs_to_predictions(best_outputs), Path(config.paths.path_to_plots) / f"fold_{fold}_confusion_matrix.png")
+            save_confusion_matrix(
+                best_targets,
+                outputs_to_predictions(best_outputs),
+                Path(config.paths.path_to_plots) / f"fold_{fold}_confusion_matrix.png",
+            )
 
-    return {"fold": int(fold), "score": float(best_metric), "outputs": best_outputs, "targets": best_targets, "val_idx": val_idx}
+    return {
+        "fold": int(fold),
+        "score": float(best_metric),
+        "outputs": best_outputs,
+        "targets": best_targets,
+        "val_idx": val_idx,
+    }
 
 
 def train(config, features, labels):
+    """Train validation folds and persist OOF predictions and CV results."""
     folds = [int(x) for x in config.split.folds_to_train]
-    oof_outputs = np.zeros((len(labels), int(config.general.num_classes)), dtype=np.float32)
+    if not folds or len(folds) != len(set(folds)):
+        raise ValueError("Select unique folds")
+    oof_outputs = np.zeros(
+        (len(labels), int(config.general.num_classes)), dtype=np.float32
+    )
     oof_labels = np.asarray(labels).copy()
     seen = np.zeros(len(labels), dtype=bool)
     scores = []
@@ -136,8 +203,28 @@ def train(config, features, labels):
         seen[result["val_idx"]] = True
         scores.append(result["score"])
 
-    np.savez(config.paths.path_to_oof, outputs=oof_outputs[seen], labels=oof_labels[seen])
+    fold_ids = np.full(len(labels), -1, dtype=int)
+    for fold in folds:
+        _, val_idx = get_fold_indices(features, labels, config, fold)
+        fold_ids[val_idx] = fold
+    np.savez(
+        config.paths.path_to_oof,
+        outputs=oof_outputs[seen],
+        labels=oof_labels[seen],
+        row_index=np.flatnonzero(seen),
+        fold=fold_ids[seen],
+    )
     mean, std = float(np.mean(scores)), float(np.std(scores))
+    metadata_path = Path(config.paths.path_to_metadata)
+    metadata = json.loads(metadata_path.read_text()) if metadata_path.exists() else {}
+    metadata.update(
+        cv_mean=mean,
+        cv_std=std,
+        fold_scores=dict(zip(map(str, folds), scores)),
+        oof_complete=bool(seen.all()),
+        preprocessing="per_fold",
+    )
+    metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     if bool(config.logging.prints):
         print(f"\nCV: {mean:.4f} ± {std:.4f}")
     return mean, std

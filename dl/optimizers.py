@@ -3,6 +3,7 @@ from omegaconf import OmegaConf
 
 
 def get_optimizer(config, model):
+    """Instantiate the configured PyTorch optimizer."""
     name = str(config.optimizer.name)
     if not hasattr(torch.optim, name):
         raise ValueError(f"Unknown optimizer: {name}")

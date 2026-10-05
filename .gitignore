@@ -1,10 +1,6 @@
-.DS_Store
 __pycache__/
-*.pyc
+*.py[cod]
 .venv/
-
-train.csv
-test.csv
-gender_submission.csv
-
-wandb/
+.DS_Store
+.ipynb_checkpoints/
+outputs/

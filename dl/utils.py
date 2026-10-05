@@ -9,6 +9,7 @@ from omegaconf import OmegaConf
 
 
 def set_seed(seed, deterministic=True):
+    """Set Python, NumPy, and, when used, PyTorch random seeds."""
     seed = int(seed)
     random.seed(seed)
     np.random.seed(seed)
@@ -20,6 +21,7 @@ def set_seed(seed, deterministic=True):
 
 
 def resolve_device(config):
+    """Choose the requested device or an available accelerator."""
     requested = str(config.training.device).lower()
     if requested == "auto":
         if torch.cuda.is_available():
@@ -31,12 +33,14 @@ def resolve_device(config):
 
 
 def ensure_directories(config):
+    """Create the directories required for local experiment artifacts."""
     Path(config.paths.path_to_checkpoints).mkdir(parents=True, exist_ok=True)
     Path(config.paths.path_to_fold_checkpoints).mkdir(parents=True, exist_ok=True)
     Path(config.paths.path_to_plots).mkdir(parents=True, exist_ok=True)
 
 
 def prepare_experiment(config):
+    """Prepare output directories while protecting existing experiments."""
     root = Path(config.paths.path_to_checkpoints)
     if root.exists() and str(config.general.mode) == "train":
         if bool(config.general.overwrite_experiment):
@@ -47,14 +51,18 @@ def prepare_experiment(config):
 
 
 def save_config_snapshot(config):
+    """Save the run configuration alongside its experiment artifacts."""
     OmegaConf.save(config, config.paths.path_to_config_snapshot)
 
 
 def save_dataset_metadata(config, features, labels):
+    """Record the data schema used by the current experiment."""
     payload = {
         "features_shape": list(features.shape),
-        "features_dtype": str(features.dtype),
+        "feature_columns": list(features.columns),
         "labels_shape": list(labels.shape),
         "labels_dtype": str(labels.dtype),
     }
-    Path(config.paths.path_to_metadata).write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    Path(config.paths.path_to_metadata).write_text(
+        json.dumps(payload, indent=2), encoding="utf-8"
+    )

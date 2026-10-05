@@ -6,17 +6,23 @@ from sklearn.metrics import ConfusionMatrixDisplay
 
 
 def save_validation_plot(y_true, y_pred, config):
+    """Save validation diagnostics for the current prediction task."""
     if not bool(config.visualization.save_validation_plot):
         return
     Path(config.paths.path_to_plots).mkdir(parents=True, exist_ok=True)
     ConfusionMatrixDisplay.from_predictions(y_true, y_pred)
     plt.title("OOF confusion matrix")
     plt.tight_layout()
-    plt.savefig(Path(config.paths.path_to_plots) / "confusion_matrix.png", dpi=140, bbox_inches="tight")
+    plt.savefig(
+        Path(config.paths.path_to_plots) / "confusion_matrix.png",
+        dpi=140,
+        bbox_inches="tight",
+    )
     plt.close()
 
 
 def save_feature_importance(pipeline, X, config):
+    """Plot available model feature importances or linear coefficients."""
     if not bool(config.visualization.save_feature_importance):
         return
     model = pipeline.named_steps["model"]
@@ -36,5 +42,9 @@ def save_feature_importance(pipeline, X, config):
     plt.xlabel("Importance")
     plt.title(f"Feature importance: {config.model.name}")
     plt.tight_layout()
-    plt.savefig(Path(config.paths.path_to_plots) / "feature_importance.png", dpi=140, bbox_inches="tight")
+    plt.savefig(
+        Path(config.paths.path_to_plots) / "feature_importance.png",
+        dpi=140,
+        bbox_inches="tight",
+    )
     plt.close()
