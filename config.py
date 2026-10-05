@@ -9,7 +9,7 @@ config = {
     "output_dir": str(ROOT / "outputs"),
     "classic_folder": "classic",
     "dl_folder": "dl",
-    "new_experiment_prefix": "clean_cv_v1",
+    "new_experiment_prefix": "clean_cv_v2",
     "ensemble": {
         "rf_experiment": "clean_cv_v1_rf",
         "xgb_experiment": "clean_cv_v1_xgb",
